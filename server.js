@@ -31,14 +31,14 @@ app.post('/api/chat', async (req, res) => {
     const cleanMessage = message.toLowerCase();
 
     // 🎯 কাস্টম মাদার/ফাদার ফিল্টার লজিক
-    if (cleanMessage.includes("who is your mother") || cleanMessage.includes("your mother") || cleanMessage.includes("ма কে")) {
+    if (cleanMessage.includes("who is your mother") || cleanMessage.includes("your mother") || cleanMessage.includes("মা কে")) {
         return res.json({ reply: "Logically, I don't have a mother, but since Shubhomoy is my father, you could say Notepad++ is my mother!" });
     }
     if (cleanMessage.includes("who is your father") || cleanMessage.includes("your father") || cleanMessage.includes("বাবা কে")) {
         return res.json({ reply: "My father is the mastermind developer Shubhomoy!" });
     }
 
-    // 🚀 ১. প্রথমে Groq (Llama 3) দিয়ে চেষ্টা
+    // 🚀 ১. প্রথমে Groq (Llama 3.3) দিয়ে চেষ্টা
     try {
         const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: 'POST',
@@ -47,19 +47,23 @@ app.post('/api/chat', async (req, res) => {
                 'Content-Type': 'application/json' 
             },
             body: JSON.stringify({
-                model: "llama3-8b-8192",
+                model: "llama-3.3-70b-specdec", // 🎯 লেটেস্ট ও ফ্রি মডেল আপডেট করা হলো
                 messages: [{ role: "user", content: message }]
             })
         });
 
-        if (!groqResponse.ok) throw new Error("Groq Failed");
+        if (!groqResponse.ok) {
+            const errText = await groqResponse.text();
+            throw new Error(`Groq Error: ${errText}`);
+        }
 
         const groqData = await groqResponse.json();
         let reply = groqData.choices[0].message.content;
         return res.json({ reply: filterNames(reply) });
 
     } catch (error) {
-        console.log("⚠️ Groq Down! Switching to Backup Gemini...");
+        console.log("⚠️ Groq Down! Reason:", error.message);
+        console.log("🔄 Switching to Backup Gemini...");
         
         // 🔄 ২. ব্যাকআপ Gemini
         try {
@@ -69,13 +73,17 @@ app.post('/api/chat', async (req, res) => {
                 body: JSON.stringify({ contents: [{ parts: [{ text: message }] }] })
             });
 
-            if (!geminiResponse.ok) throw new Error("Gemini Failed");
+            if (!geminiResponse.ok) {
+                const geminiErr = await geminiResponse.text();
+                throw new Error(`Gemini Error: ${geminiErr}`);
+            }
 
             const geminiData = await geminiResponse.json();
             let reply = geminiData.candidates[0].content.parts[0].text;
             return res.json({ reply: filterNames(reply) });
 
         } catch (geminiError) {
+            console.log("💥 Gemini Also Failed! Reason:", geminiError.message);
             return res.status(500).json({ reply: "Sorry মামা, দুইটা সার্ভারই এখন বিজি আছে!" });
         }
     }
