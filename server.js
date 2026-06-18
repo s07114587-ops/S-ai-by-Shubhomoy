@@ -1,103 +1,93 @@
-<!DOCTYPE html>
-<html lang="bn">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link class="favicon" rel="icon" type="image/png" href="111.png">
-    <title>s ai Pro - World's Most Private AI</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
+
+// CORS পলিসি ওপেন করা হলো
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json());
+
+// 🔒 রেন্ডার ড্যাশবোর্ডের Environment Variables থেকে কীগুলো লোড হবে
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// হোম রুট মেসেজ
+app.get('/', (req, res) => {
+    res.send("🚀 s ai Pro Backend Server is Running Perfectly, Shubhomoy মামা!");
+});
+
+// 💬 চ্যাটের মেইন রুট
+app.post('/api/chat', async (req, res) => {
+    const { message } = req.body;
+    if (!message) {
+        return res.status(400).json({ reply: "মেসেজ ফাঁকা মামা!" });
+    }
+    
+    const cleanMessage = message.toLowerCase();
+
+    // 🎯 কাস্টম মাদার/ফাদার ফিল্টার লজিক
+    if (cleanMessage.includes("who is your mother") || cleanMessage.includes("your mother") || cleanMessage.includes("ма কে")) {
+        return res.json({ reply: "Logically, I don't have a mother, but since Shubhomoy is my father, you could say Notepad++ is my mother!" });
+    }
+    if (cleanMessage.includes("who is your father") || cleanMessage.includes("your father") || cleanMessage.includes("বাবা কে")) {
+        return res.json({ reply: "My father is the mastermind developer Shubhomoy!" });
+    }
+
+    // 🚀 ১. প্রথমে Groq (Llama 3) দিয়ে চেষ্টা
+    try {
+        const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${GROQ_API_KEY}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({
+                model: "llama3-8b-8192",
+                messages: [{ role: "user", content: message }]
+            })
+        });
+
+        if (!groqResponse.ok) throw new Error("Groq Failed");
+
+        const groqData = await groqResponse.json();
+        let reply = groqData.choices[0].message.content;
+        return res.json({ reply: filterNames(reply) });
+
+    } catch (error) {
+        console.log("⚠️ Groq Down! Switching to Backup Gemini...");
         
-        /* 🎯 পিসির জন্য ব্যাকগ্রাউন্ড (1.png) */
-        body { 
-            background: url('1.png') no-repeat center center fixed; 
-            background-size: cover;
-            color: #ffffff; 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden; 
+        // 🔄 ২. ব্যাকআপ Gemini
+        try {
+            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: message }] }] })
+            });
+
+            if (!geminiResponse.ok) throw new Error("Gemini Failed");
+
+            const geminiData = await geminiResponse.json();
+            let reply = geminiData.candidates[0].content.parts[0].text;
+            return res.json({ reply: filterNames(reply) });
+
+        } catch (geminiError) {
+            return res.status(500).json({ reply: "Sorry মামা, দুইটা সার্ভারই এখন বিজি আছে!" });
         }
-        
-        /* 🎯 ফোনের জন্য ব্যাকগ্রাউন্ড (0.png) */
-        @media (max-width: 768px) {
-            body { 
-                background: url('0.png') no-repeat center center fixed; 
-                background-size: cover; 
-            }
-        }
-        
-        .chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; background: rgba(11, 15, 25, 0.4); }
-        .message { max-width: 80%; padding: 12px 18px; border-radius: 18px; font-size: 15px; line-height: 1.5; word-wrap: break-word; }
-        .user-msg { background: linear-gradient(135deg, #533190 0%, #3e1e75 100%); align-self: flex-end; border-bottom-right-radius: 4px; }
-        .ai-msg { background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); align-self: flex-start; border-bottom-left-radius: 4px; backdrop-filter: blur(5px); }
-        .typing-indicator { display: none; align-self: flex-start; padding: 12px 18px; background: rgba(0, 0, 0, 0.6); border-radius: 15px; color: #a072ff; font-size: 14px; font-weight: 600; border-bottom-left-radius: 4px; border: 1px solid rgba(160, 114, 255, 0.2); }
-        .input-area { display: flex; padding: 15px 20px; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px); gap: 10px; align-items: center; }
-        .input-area input[type="text"] { flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: white; padding: 15px; border-radius: 25px; outline: none; font-size: 15px; }
-        .input-area input[type="text"]:focus { border-color: #6f42c1; background: rgba(255, 255, 255, 0.1); }
-        .icon-btn { background: none; border: none; color: #a072ff; font-size: 22px; cursor: pointer; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .icon-btn:hover { background: #6f42c1; color: white; }
-    </style>
-</head>
-<body>
-    <div class="chat-container" id="chat-box">
-        <div class="typing-indicator" id="loading">s ai Pro thinking... ⚡</div>
-    </div>
-    <div class="input-area">
-        <input type="text" id="user-input" placeholder="Ask s ai Pro anything (১০০০ ট্রাফিক লোড রেডি)...">
-        <button class="icon-btn" id="send-btn">➤</button>
-    </div>
+    }
+});
 
-    <script>
-        // 🔗 তোমার আসল রেন্ডার ব্যাকঅ্যান্ড লিঙ্ক এখানে সাকসেসফুলি বসালাম 🚀
-        const RENDER_BACKEND_URL = "https://si-bakend.onrender.com"; 
+function filterNames(text) {
+    return text.replace(/Groq/gi, "Shubhomoy Tech")
+               .replace(/Llama/gi, "s ai Pro")
+               .replace(/Meta/gi, "Shubhomoy")
+               .replace(/Google/gi, "Shubhomoy")
+               .replace(/Gemini/gi, "s ai Pro");
+}
 
-        const chatBox = document.getElementById('chat-box');
-        const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const loading = document.getElementById('loading');
-
-        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
-        sendBtn.addEventListener('click', () => { sendMessage(); });
-
-        function appendMessage(text, isUser) {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${isUser ? 'user-msg' : 'ai-msg'}`;
-            msgDiv.innerText = text;
-            chatBox.insertBefore(msgDiv, loading);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        async function sendMessage() {
-            const text = userInput.value.trim(); if (!text) return;
-            appendMessage(text, true);
-            userInput.value = '';
-            loading.style.display = 'block';
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            try {
-                // রেন্ডার সিকিউর ব্যাকঅ্যান্ড সার্ভারে ডেটা পাঠানো হচ্ছে
-                const response = await fetch(`${RENDER_BACKEND_URL}/api/chat`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text })
-                });
-
-                const data = await response.json();
-                loading.style.display = 'none';
-                appendMessage(data.reply, false);
-                
-                // ভয়েস রেসপন্স
-                const speech = new SpeechSynthesisUtterance(data.reply); 
-                speech.lang = 'en-US'; 
-                window.speechSynthesis.speak(speech);
-
-            } catch (error) {
-                loading.style.display = 'none';
-                appendMessage("সার্ভার কানেকশন এরর মামা! রেন্ডার লিঙ্কটা চেক করো অথবা একটু পর ট্রাই করো।", false);
-            }
-        }
-    </script>
-</body>
-</html>
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
