@@ -12,7 +12,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// 🔒 রেন্ডার ড্যাশবোর্ডের Environment Variables থেকে কীগুলো লোড হবে
+// 🔒 ਰেন্ডার ড্যাশবোর্ডের Environment Variables থেকে কীগুলো লোড হবে
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -38,7 +38,7 @@ app.post('/api/chat', async (req, res) => {
         return res.json({ reply: "My father is the mastermind developer Shubhomoy!" });
     }
 
-    // 🚀 ১. প্রথমে Groq (Llama 3.3) দিয়ে চেষ্টা
+    // 🚀 ১. প্রথমে Groq (Llama 3.3 Versatile) দিয়ে চেষ্টা
     try {
         const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: 'POST',
@@ -47,7 +47,7 @@ app.post('/api/chat', async (req, res) => {
                 'Content-Type': 'application/json' 
             },
             body: JSON.stringify({
-                model: "llama-3.3-70b-specdec", // 🎯 লেটেস্ট ও ফ্রি মডেল আপডেট করা হলো
+                model: "llama-3.3-70b-versatile", // 🎯 ২০২৬ সালের একদম লেটেস্ট একটিভ ফ্রি মডেল
                 messages: [{ role: "user", content: message }]
             })
         });
@@ -65,9 +65,9 @@ app.post('/api/chat', async (req, res) => {
         console.log("⚠️ Groq Down! Reason:", error.message);
         console.log("🔄 Switching to Backup Gemini...");
         
-        // 🔄 ২. ব্যাকআপ Gemini
+        // 🔄 ২. ব্যাকআপ Gemini (v1 ভার্সনে লেটেস্ট gemini-2.5-flash)
         try {
-            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts: [{ text: message }] }] })
