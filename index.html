@@ -50,8 +50,8 @@
     </div>
 
     <script>
-        // 🔗 রেন্ডার (Render) থেকে পাওয়া লাইভ লিঙ্কটা এখানে বসাবে মামা
-        const RENDER_BACKEND_URL = "https://তোমার-রেন্ডার-লিঙ্ক-এখানে.onrender.com"; 
+        // 🔗 তোমার আসল রেন্ডার ব্যাকঅ্যান্ড লিঙ্ক এখানে সাকসেসফুলি বসালাম 🚀
+        const RENDER_BACKEND_URL = "https://si-bakend.onrender.com"; 
 
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
@@ -77,6 +77,7 @@
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
+                // রেন্ডার সিকিউর ব্যাকঅ্যান্ড সার্ভারে ডেটা পাঠানো হচ্ছে
                 const response = await fetch(`${RENDER_BACKEND_URL}/api/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -87,6 +88,7 @@
                 loading.style.display = 'none';
                 appendMessage(data.reply, false);
                 
+                // ভয়েস রেসপন্স
                 const speech = new SpeechSynthesisUtterance(data.reply); 
                 speech.lang = 'en-US'; 
                 window.speechSynthesis.speak(speech);
